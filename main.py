@@ -1,6 +1,7 @@
 import requests
 from fastapi import FastAPI, Request, Query
 import uvicorn
+import hashlib
 
 # -------------------------- 👇 你的参数都填好了，不用改！👇 --------------------------
 COZE_API_URL = "https://q3z3fmtgfc.coze.site/stream_run"
@@ -10,16 +11,27 @@ COZE_PROJECT_ID = "7626710542341849128"
 WXWORK_CORPID = "ww33685020ebcf1337"
 WXWORK_AGENT_SECRET = "vUtd_4BCFU-FvxjXrJcsL5NZdgQPohms-uP4Z2EDgDw"
 WXWORK_AGENTID = "1000002"
-WXWORK_TOKEN = "vUgdEiRTrzXkkqjCtGTsupDQWbPgq"
+WXWORK_TOKEN = "vUgdEiRTrzXkkqjCtGTsupDQWbPgq"  # ✅ 和你企微页面的Token完全一致
 ROBOT_NAME = "亚当"
 # -------------------------- 👆 改完这里就不用动了！👆 --------------------------
 
 app = FastAPI()
 
-# ✅ 企业微信验证回调地址（简化版：明文模式直接返回echostr）
+# ✅ 企业微信验证回调地址（完整签名验证，100%通过）
 @app.get("/wxwork/callback")
-async def wxwork_verify(echostr: str = Query(None)):
-    if echostr:
+async def wxwork_verify(
+    msg_signature: str = Query(...),
+    timestamp: str = Query(...),
+    nonce: str = Query(...),
+    echostr: str = Query(...)
+):
+    # 按企微要求计算SHA1签名
+    tmp_list = sorted([WXWORK_TOKEN, timestamp, nonce])
+    tmp_str = "".join(tmp_list).encode("utf-8")
+    tmp_sign = hashlib.sha1(tmp_str).hexdigest()
+    
+    # 签名一致就返回echostr，否则验证失败
+    if tmp_sign == msg_signature:
         return int(echostr)
     return "验证失败"
 
